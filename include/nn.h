@@ -2,9 +2,6 @@
 #include "matrix.h"
 #include <math.h>
 
-typedef struct NNLayers {
-} NNLayers;
-
 typedef struct NeuralNetwork {
     float lr;
     int ni;
@@ -24,7 +21,6 @@ int destroy_nn(NeuralNetwork *nn);
 Matrix *sigmoid(Matrix *m);
 Matrix *gradients(Matrix *m);
 Matrix *nn_predict(NeuralNetwork *nn, float *ax);
-// TODO
 void nn_train(NeuralNetwork *nn, float *ay);
 
 
