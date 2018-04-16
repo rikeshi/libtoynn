@@ -3,7 +3,7 @@ CC=gcc
 INCLUDES=-Iinclude
 LIBS=-lm
 
-SRCS=matrix.c nn.c
+SRCS=mat.c nn.c
 OBJS=$(SRCS:.c=.o)
 
 TARGET=libtoynn.so
