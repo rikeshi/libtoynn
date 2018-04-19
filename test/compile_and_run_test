@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# compile test.c with libtoynn.so, set libary path and run test
+gcc -I../include -o test  test.c -L.. -ltoynn && LD_LIBRARY_PATH=.. ./test
+
