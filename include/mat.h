@@ -1,5 +1,4 @@
 #pragma once
-#include <stdio.h>
 #include <stdlib.h>
 
 typedef struct Matrix {
@@ -8,18 +7,17 @@ typedef struct Matrix {
     float *data;
 } Matrix;
 
-Matrix *create_matrix(size_t rows, size_t cols);
-int destroy_matrix(Matrix *m);
-Matrix *fill_matrix(Matrix *m, float n);
-Matrix *add_scalar(Matrix *m, float n);
-Matrix *sub_scalar(Matrix *m, float n);
-Matrix *mult_scalar(Matrix *m, float n);
-Matrix *add_elem(Matrix *m1, Matrix *m2);
-Matrix *sub_elem(Matrix *m1, Matrix *m2);
-Matrix *mult_elem(Matrix *m1, Matrix *m2);
-Matrix *mult_mat(Matrix *m1, Matrix *m2, Matrix *mout);
-Matrix *transpose(Matrix *m, Matrix *mout);
-Matrix *randomize(Matrix *m);
-Matrix *matrix_from_array(float *a, size_t size, Matrix *mout);
-void print_matrix(Matrix *m);
+Matrix *mat_create(size_t rows, size_t cols);
+void mat_delete(Matrix *m);
+void mat_randomize(Matrix *m);
+void mat_set(Matrix *m, float n);
+void mat_add_scalar(Matrix *a, float n);
+void mat_sub_scalar(Matrix *a, float n);
+void mat_mul_scalar(Matrix *a, float n);
+int mat_add(Matrix *a, Matrix *b);
+int mat_sub(Matrix *a, Matrix *b);
+int mat_mul_entrywise(Matrix *a, Matrix *b);
+Matrix *mat_mul(Matrix *a, Matrix *b, Matrix *out);
+Matrix *mat_transpose(Matrix *m);
+Matrix *mat_from_array(float *a, size_t size, Matrix *out);
 

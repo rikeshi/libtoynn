@@ -1,26 +1,29 @@
 #pragma once
-#include "matrix.h"
+#include "mat.h"
 #include <math.h>
+#include <stdlib.h>
 
 typedef struct NeuralNetwork {
+    size_t depth;
+    size_t *shape;
+    Matrix **layers;
+    Matrix **weights;
+    Matrix **biases;
+    void (*activation)(Matrix *m);
+    void (*dactivation)(Matrix *m);
+    int (*dcost)(Matrix *target, Matrix *m);
     float lr;
-    int ni;
-    int nh;
-    int no;
-    Matrix *i;
-    Matrix *h;
-    Matrix *o;
-    Matrix *w_ih;
-    Matrix *w_ho;
-    Matrix *b_h;
-    Matrix *b_o;
 } NeuralNetwork;
 
-NeuralNetwork *create_nn(uint ni, uint nh, uint no);
-int destroy_nn(NeuralNetwork *nn);
-Matrix *sigmoid(Matrix *m);
-Matrix *gradients(Matrix *m);
-Matrix *nn_predict(NeuralNetwork *nn, float *ax);
-void nn_train(NeuralNetwork *nn, float *ay);
-
+void nn_sigmoid(Matrix *m);
+void nn_dsigmoid(Matrix *m);
+void nn_tanh(Matrix *m);
+void nn_dtanh(Matrix *m);
+void nn_relu(Matrix *m);
+void nn_drelu(Matrix *m);
+int nn_mse_gradient(Matrix *y, Matrix *m);
+NeuralNetwork *nn_create(size_t shape[]);
+void nn_delete(NeuralNetwork *nn);
+Matrix *nn_predict(NeuralNetwork *nn, float *x);
+void nn_train(NeuralNetwork *nn, float *y);
 

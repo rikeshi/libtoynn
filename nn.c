@@ -1,107 +1,125 @@
 #include "nn.h"
 
-NeuralNetwork *create_nn(uint ni, uint nh, uint no) {
-    NeuralNetwork *nn = malloc(sizeof(NeuralNetwork));
-    nn->lr = 0.1;
-    nn->ni = ni;
-    nn->nh = nh;
-    nn->no = no;
-    nn->i = create_matrix(ni, 1);
-    nn->h = create_matrix(nh, 1);
-    nn->o = create_matrix(no, 1);
-    nn->w_ih = create_matrix(nh, ni);
-    nn->w_ho = create_matrix(no, nh);
-    nn->b_h = create_matrix(nh, 1);
-    nn->b_o = create_matrix(no, 1);
-    randomize(nn->w_ih);
-    randomize(nn->w_ho);
-    randomize(nn->b_h);
-    randomize(nn->b_o);
-    return nn;
+void nn_sigmoid(Matrix *m) {
+    for (size_t i = 0; i < m->rows * m->cols; i++) {
+        float x = m->data[i];
+        m->data[i] = 1.0f / (1.0f + exp(-x));
+    }
 }
 
-int destroy_nn(NeuralNetwork *nn) {
-    if (!nn) return 1;
-    destroy_matrix(nn->i);
-    destroy_matrix(nn->h);
-    destroy_matrix(nn->o);
-    destroy_matrix(nn->w_ih);
-    destroy_matrix(nn->w_ho);
-    destroy_matrix(nn->b_h);
-    destroy_matrix(nn->b_o);
-    free(nn);
+void nn_dsigmoid(Matrix *m) {
+    for(size_t i = 0; i < m->rows * m->cols; i++) {
+        float x = m->data[i];
+        m->data[i] = x * (1.0f - x);
+    }
+}
+
+void nn_tanh(Matrix *m) {
+    for (size_t i = 0; i < m->rows * m->cols; i++) {
+        float x = m->data[i];
+        m->data[i] = tanhf(x);
+    }
+}
+
+void nn_dtanh(Matrix *m) {
+    for(size_t i = 0; i < m->rows * m->cols; i++) {
+        float x = m->data[i];
+        m->data[i] = 1.0f - (x * x);
+    }
+}
+
+void nn_relu(Matrix *m) {
+    for (size_t i = 0; i < m->rows * m->cols; i++) {
+        float x = m->data[i];
+        m->data[i] = fmaxf(0.0f, x);
+    }
+}
+
+void nn_drelu(Matrix *m) {
+    for(size_t i = 0; i < m->rows * m->cols; i++) {
+        float x = m->data[i];
+        m->data[i] = (x > 0.0f) ? x : 0.0f;
+    }
+}
+
+int nn_mse_gradient(Matrix *y, Matrix *m) {
+    if (y->rows != m->rows) return 1;
+    if (y->cols != m->cols) return 1;
+    for (size_t i = 0; i < m->rows * m->cols; i++) {
+        y->data[i] = y->data[i] - m->data[i];
+    }
     return 0;
 }
 
-Matrix *sigmoid(Matrix *m) {
-    for (size_t i = 0; i < m->rows * m->cols; i++) {
-        float x = m->data[i];
-        m->data[i] = (float)(1 / (1 + exp(-x)));
+NeuralNetwork *nn_create(size_t shape[]) {
+    NeuralNetwork *nn = malloc(sizeof (NeuralNetwork));
+    size_t *end = shape;
+    while (*end) end++;
+    nn->depth = end - shape;
+    nn->shape = malloc(nn->depth * (sizeof *nn->shape));
+    nn->layers = malloc(nn->depth * (sizeof *nn->layers));
+    nn->weights = malloc((nn->depth - 1) * (sizeof *nn->weights));
+    nn->biases = malloc((nn->depth - 1) * (sizeof *nn->biases));
+    for (size_t i = 0; i < nn->depth; i++) {
+        nn->shape[i] = shape[i];
+        nn->layers[i] = mat_create(shape[i], 1);
+        if (i != nn->depth - 1) {
+            nn->weights[i] = mat_create(shape[i+1], shape[i]);
+            nn->biases[i] = mat_create(shape[i+1], 1);
+            mat_randomize(nn->weights[i]);
+            mat_randomize(nn->biases[i]);
+        }
     }
-    return m;
+    nn->activation = nn_sigmoid;
+    nn->dactivation = nn_dsigmoid;
+    nn->dcost = nn_mse_gradient;
+    nn->lr = 0.1;
+    return nn;
 }
 
-Matrix *gradients(Matrix *m) {
-    // sigmoid(Wx+b) * (1 - sigmoid(Wx+b))
-    Matrix *grad = create_matrix(m->rows, m->cols);
-    for(size_t i = 0; i < m->rows * m->cols; i++)
-        grad->data[i] = 1 - m->data[i];
-    m = mult_elem(m, grad);
-    destroy_matrix(grad);
-    return m;
+void nn_delete(NeuralNetwork *nn) {
+    free(nn->shape);
+    for (size_t i = 1; i < nn->depth - 1; i++) {
+        mat_delete(nn->layers[i]);
+        mat_delete(nn->weights[i]);
+        mat_delete(nn->biases[i]);
+    }
+    mat_delete(nn->layers[nn->depth - 1]);
+    free(nn);
 }
 
-void nn_train(NeuralNetwork *nn, float *ay) {
-    // adjust w_ho
-    Matrix *y = matrix_from_array(ay, nn->no, NULL);
-    Matrix *err_o = sub_elem(y, nn->o);
-    // calculate the gradients
-    Matrix *grad_o = gradients(nn->o);
-    grad_o = mult_elem(grad_o, err_o);
-    grad_o = mult_scalar(grad_o, nn->lr);
-    // calculate deltas
-    Matrix *h_t = transpose(nn->h, NULL);
-    Matrix *dw_ho = mult_mat(grad_o, h_t, NULL);
-    // update the weigths and biases
-    nn->w_ho = add_elem(nn->w_ho, dw_ho);
-    nn->b_o = add_elem(nn->b_o, grad_o);
-
-    // adjust w_ih
-    // skip normalizing the weights for this simple network
-    // e.g. just W[1][1] instead of W[1][1] / Sum(j, W[1][j])
-    Matrix *w_ho_t = transpose(nn->w_ho, NULL);
-    Matrix *err_h = mult_mat(w_ho_t, err_o, NULL);
-    // calculate the gradients
-    Matrix *grad_h = gradients(nn->h);
-    grad_h = mult_elem(grad_h, err_h);
-    grad_h = mult_scalar(grad_h, nn->lr);
-    // calculate the deltas
-    Matrix *i_t = transpose(nn->i, NULL);
-    Matrix *dw_ih = mult_mat(grad_h, i_t, NULL);
-    // adjust the weights and biases
-    nn->w_ih = add_elem(nn->w_ih, dw_ih);
-    nn->b_h = add_elem(nn->b_h, grad_h);
-
-    // cleanup
-    destroy_matrix(err_o);
-    destroy_matrix(h_t);
-    destroy_matrix(dw_ho);
-    destroy_matrix(w_ho_t);
-    destroy_matrix(err_h);
-    destroy_matrix(i_t);
-    destroy_matrix(dw_ih);
+Matrix *nn_predict(NeuralNetwork *nn, float *x) {
+    mat_from_array(x, nn->shape[0], nn->layers[0]);
+    for (size_t i = 1; i < nn->depth; i++) {
+        mat_mul(nn->weights[i-1], nn->layers[i-1], nn->layers[i]);
+        mat_add(nn->layers[i], nn->biases[i-1]);
+        nn->activation(nn->layers[i]);
+    }
+    return nn->layers[nn->depth - 1];
 }
 
-Matrix *nn_predict(NeuralNetwork *nn, float *ax) {
-    // sigmoid(W_ih * h + b_h)
-    nn->i = matrix_from_array(ax, nn->ni, nn->i);
-    nn->h = mult_mat(nn->w_ih, nn->i, nn->h);
-    nn->h = add_elem(nn->h, nn->b_h);
-    nn->h = sigmoid(nn->h);
-    // sigmoid(W_ho * o + b_o)
-    nn->o = mult_mat(nn->w_ho, nn->h, nn->o);
-    nn->o = add_elem(nn->o, nn->b_o);
-    nn->o = sigmoid(nn->o);
-    return nn->o;
+void nn_train(NeuralNetwork *nn, float *y) {
+    Matrix *err = mat_from_array(y, nn->shape[nn->depth - 1], NULL);
+    for (size_t i = nn->depth - 1; i > 0; i--) {
+        if (i == nn->depth - 1) {
+            nn->dcost(err, nn->layers[nn->depth - 1]);
+            nn->dactivation(nn->layers[nn->depth - 1]);
+        } else {
+            Matrix *weights_t = mat_transpose(nn->weights[i]);
+            Matrix *prev_err = err;
+            err = mat_mul(weights_t, prev_err, NULL);
+            mat_delete(weights_t);
+            mat_delete(prev_err);
+        }
+        nn->dactivation(nn->layers[i]);
+        mat_mul_entrywise(nn->layers[i], err);
+        mat_mul_scalar(nn->layers[i], nn->lr);
+        Matrix *layer_t = mat_transpose(nn->layers[i-1]);
+        Matrix *deltas = mat_mul(nn->layers[i], layer_t, NULL);
+        mat_add(nn->weights[i-1], deltas);
+        mat_add(nn->biases[i-1], nn->layers[i]);
+        mat_delete(layer_t);
+        mat_delete(deltas);
+    }
 }
 
