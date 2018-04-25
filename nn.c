@@ -102,8 +102,8 @@ void nn_train(NeuralNetwork *nn, float *y) {
     Matrix *err = mat_from_array(y, nn->shape[nn->depth - 1], NULL);
     for (size_t i = nn->depth - 1; i > 0; i--) {
         if (i == nn->depth - 1) {
-            nn->dcost(err, nn->layers[nn->depth - 1]);
-            nn->dactivation(nn->layers[nn->depth - 1]);
+            nn->dcost(err, nn->layers[i]);
+            nn->dactivation(nn->layers[i]);
         } else {
             Matrix *weights_t = mat_transpose(nn->weights[i]);
             Matrix *prev_err = err;
