@@ -38,7 +38,7 @@ void nn_relu(Matrix *m) {
 void nn_drelu(Matrix *m) {
     for(size_t i = 0; i < m->rows * m->cols; i++) {
         float x = m->data[i];
-        m->data[i] = (x > 0.0f) ? x : 0.0f;
+        m->data[i] = (x > 0.0f) ? 1 : 0.0f;
     }
 }
 
